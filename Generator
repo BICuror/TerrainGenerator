@@ -1,0 +1,196 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Tilemaps;
+
+public class LevelGenerator : MonoBehaviour
+{
+	[SerializeField] private TileBase[] mainTile;
+	[SerializeField] private TileBase[] rightTile;
+	[SerializeField] private TileBase[] leftTile;
+	[SerializeField] private TileBase[] frontTile
+
+        [SerializeField] private Tilemap tilemap;
+        [SerializeField] private int roomsSize;
+	[SerializeField] private int chanceToDestroyWalker;
+	[SerializeField] private int maxWalkers;
+	[SerializeField] private int chanceWalkerToSpawn;
+	[SerializeField] private int chanceWalkerChangeDirection;
+
+	[SerializeField] private int startWalkers;
+
+        public int[,] grid;
+	public int[,] biomGrid;
+
+        private struct walker
+        {
+            public Vector3Int position;
+            public Vector2 rotation;
+        }
+
+        private List<walker> walkers;
+
+	private void Start()
+	{
+		GenerateMap();
+	}
+
+   	public void GenerateMap()
+	{
+	    grid = new int[roomsSize, roomsSize]; 
+      
+	    SpawnWalkers();
+	    CreateFloors();
+	    GenerateTiles();
+	}
+
+         private void SpawnWalkers()
+         {
+	      	walkers = new List<walker>();
+
+		     for (int i = 0; i < startWalkers; i++)
+		     {
+		   	walker newWalker = new walker();
+		   	newWalker.rotation = RandomDirection();
+		   	Vector3Int spawnPos = new Vector3Int(roomsSize / 2, roomsSize / 2, 0);			
+		   	newWalker.position = spawnPos;
+		   	walkers.Add(newWalker);
+	          }
+          }
+
+	private void GenerateTiles()
+	{
+		for (int x = 0; x < roomsSize; x++)
+		{
+			for (int y = 0; y < roomsSize; y++)
+			{
+				if (grid[x, y] != 0)
+				{
+					GenerateTile(x, y);
+				}
+			}
+		}
+	}
+
+	
+	private void GenerateTile(int x, int y)
+	{
+		if (CheckForLeft(x, y))
+		{   
+			tilemap.SetTile(new Vector3Int(x, y, 0), leftTile[GiveRandomIndexes(leftTile.Length)]);
+		}
+		else if (CheckForRight(x, y))
+		{
+			tilemap.SetTile(new Vector3Int(x, y, 0), rightTile[GiveRandomIndexes(rightTile.Length)]);
+		}
+		else if (CheckForFront(x, y))
+		{
+			tilemap.SetTile(new Vector3Int(x, y, 0), frontTile[GiveRandomIndexes(frontTile.Length)]);
+		}
+		else 
+		{
+			tilemap.SetTile(new Vector3Int(x, y, 0), mainTile[GiveRandomIndexes(mainTile.Length)]);
+		}
+	}
+
+	private bool CheckForLeft(int x, int y)
+	{
+		return grid[x, y - 1] != 0 && grid[x - 1, y] == 0;
+	}
+
+	private bool CheckForRight(int x, int y)
+	{
+		return grid[x - 1, y] != 0 && grid[x, y - 1] == 0;
+	}
+
+	private bool CheckForFront(int x, int y)
+	{
+		return grid[x, y - 1] == 0 && grid[x - 1, y] == 0;
+	}
+
+	private int GiveRandomIndexes(int length)
+	{
+		int rand = Random.Range(0, length);
+		return rand;
+	}
+
+    private void CreateFloors()
+	{
+		int iterations = 0;
+		while (iterations < 1000)
+        {
+			for (int i = 0; i < walkers.Count; i++)
+            {
+                grid[walkers[i].position.x, walkers[i].position.y] = 1;
+				
+            }
+
+			for (int i = 0; i < walkers.Count; i++)
+			{
+				int rand = Random.Range(0, 100);
+				if (rand < chanceToDestroyWalker)
+				{
+					walkers.RemoveAt(i);
+					break; 
+				}
+			}
+
+			for (int i = 0; i < walkers.Count; i++)
+			{
+				int rand = Random.Range(0, 100);
+				if (rand < chanceWalkerChangeDirection)
+				{
+					walker thisWalker = walkers[i];
+					thisWalker.rotation = RandomDirection();
+					walkers[i] = thisWalker;
+				}
+			}
+
+			for (int i = 0; i < walkers.Count; i++)
+			{
+				int rand = Random.Range(0, 100);
+				if (rand < chanceWalkerToSpawn && walkers.Count < maxWalkers)
+				{
+					walker newWalker = new walker();
+					newWalker.rotation = RandomDirection();
+					newWalker.position = walkers[i].position;
+					walkers.Add(newWalker);
+				}
+			}
+			
+			for (int i = 0; i < walkers.Count; i++){
+				walker thisWalker = walkers[i];
+				thisWalker.position += new Vector3Int((int)thisWalker.rotation.x, (int)thisWalker.rotation.y, 0);
+				walkers[i] = thisWalker;				
+			}
+
+			
+			for (int i = 0; i < walkers.Count; i++)
+			{
+				walker thisWalker = walkers[i];
+				thisWalker.position.x = Mathf.Clamp(thisWalker.position.x, 1, roomsSize-2);
+				thisWalker.position.y = Mathf.Clamp(thisWalker.position.y, 1, roomsSize-2);
+				walkers[i] = thisWalker;
+			}
+			
+			if (walkers.Count == 0)
+			{
+				break;
+			}
+			iterations++;
+		}
+    }
+
+
+    private Vector2 RandomDirection()
+    {
+	    int choice = Random.Range(0, 4);
+    	switch (choice)
+        {
+		    case 0: return Vector2.down;
+    		case 1: return Vector2.left;
+	    	case 2: return Vector2.up;
+		    default: return Vector2.right;
+        }
+    }
+}
